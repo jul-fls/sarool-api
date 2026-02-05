@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  sarool-ics:
+    image: ghcr.io/jul-fls/sarool-api/app:latest
+    container_name: sarool-ics
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
