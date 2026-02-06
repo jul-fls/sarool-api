@@ -46,6 +46,7 @@ cp .env.example .env
 SAROOL_EMAIL=prenom.nom@email.com
 SAROOL_PASSWORD=mot_de_passe_sarool
 API_TOKEN=token_secret_pour_l_api
+TZ=Europe/Paris
 ```
 
 ### ⏱️ Cache (optionnel)

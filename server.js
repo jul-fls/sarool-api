@@ -193,10 +193,18 @@ async function fetchPlanning() {
 
 function buildICS(events) {
   const t0 = Date.now();
-  const { error, value } = createEvents(events,
-    { title: "Sarool Planning", productId: "sarool-api", timezone: TIMEZONE }
-  );
+
+  const { error, value } = createEvents(events, {
+    calName: "Sarool Planning",
+    productId: "sarool-api",
+    startInputType: "local",
+    startOutputType: "utc",
+    endInputType: "local",
+    endOutputType: "utc"
+  });
+
   if (error) throw error;
+
   console.log(`[ICS] généré en ${Date.now() - t0} ms`);
   return value;
 }
