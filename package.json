@@ -19,11 +19,12 @@
   },
   "homepage": "https://github.com/jul-fls/Sarool-api#readme",
   "dependencies": {
+    "@touch4it/ical-timezones": "^1.9.0",
     "cheerio": "^1.2.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "fetch-cookie": "^3.2.0",
-    "ics": "^3.8.1",
+    "ical-generator": "^10.0.0",
     "node-fetch": "^3.3.2",
     "tough-cookie": "^6.0.0"
   }

@@ -3,7 +3,8 @@ import fetch from "node-fetch";
 import fetchCookie from "fetch-cookie";
 import { CookieJar } from "tough-cookie";
 import * as cheerio from "cheerio";
-import { createEvents } from "ics";
+import ical, { ICalCalendarMethod } from "ical-generator";
+import { getVtimezoneComponent } from "@touch4it/ical-timezones";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -70,6 +71,8 @@ let cache = {
   ics: null
 };
 
+let inFlightPromise = null;
+
 /* =========================
    AUTH SAROOL
    ========================= */
@@ -109,9 +112,7 @@ async function loginSarool() {
     __EVENTVALIDATION: eventValidation,
     "ctl00$MainContent$Email": EMAIL,
     "ctl00$MainContent$Password": PASSWORD,
-    "ctl00$MainContent$ctl05": "Connexion",
-    wdwManager_ClientState: "",
-    wdwManagerOuiNon_ClientState: ""
+    "ctl00$MainContent$ctl05": "Connexion"
   });
 
   const res = await client(`${BASE}/compte/connexion`, {
@@ -166,20 +167,13 @@ async function fetchPlanning() {
     if (/simulateur/i.test(typeLabel)) type = "simulateur";
     else if (/module/i.test(typeLabel)) type = "module";
 
-    const location = resolveLocation(type);
-
     events.push({
-      title: `${typeLabel} – ${instructor}`,
-      start: [year, m, d, h, min],
-      end: [
-        end.getFullYear(),
-        end.getMonth() + 1,
-        end.getDate(),
-        end.getHours(),
-        end.getMinutes()
-      ],
-      location,
-      description: `Moniteur : ${instructor}\nType : ${typeLabel}`
+      start,
+      end,
+      summary: `${typeLabel} – ${instructor}`,
+      description: `Moniteur : ${instructor}\nType : ${typeLabel}`,
+      location: resolveLocation(type),
+      timezone: TIMEZONE
     });
   });
 
@@ -188,25 +182,27 @@ async function fetchPlanning() {
 }
 
 /* =========================
-   ICS
+   ICS (ical-generator)
    ========================= */
 
 function buildICS(events) {
   const t0 = Date.now();
 
-  const { error, value } = createEvents(events, {
-    calName: "Sarool Planning",
-    productId: "sarool-api",
-    startInputType: "local",
-    startOutputType: "utc",
-    endInputType: "local",
-    endOutputType: "utc"
+  const calendar = ical({
+    name: "Sarool Planning",
+    method: ICalCalendarMethod.PUBLISH,
+    timezone: {
+      name: TIMEZONE,
+      generator: getVtimezoneComponent
+    }
   });
 
-  if (error) throw error;
+  for (const evt of events) {
+    calendar.createEvent(evt);
+  }
 
   console.log(`[ICS] généré en ${Date.now() - t0} ms`);
-  return value;
+  return calendar.toString();
 }
 
 /* =========================
@@ -214,7 +210,6 @@ function buildICS(events) {
    ========================= */
 
 const app = express();
-let inFlightPromise = null;
 
 app.get("/planning", async (req, res) => {
   const t0 = Date.now();
