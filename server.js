@@ -23,7 +23,7 @@ if (!EMAIL || !PASSWORD || !API_TOKEN) {
 }
 
 /* =========================
-   LOCATIONS (ENV CONFIG)
+   LOCATIONS
    ========================= */
 
 const LOCATIONS = {
@@ -54,14 +54,14 @@ function resolveLocation(type) {
 }
 
 /* =========================
-   HTTP CLIENT + COOKIES
+   HTTP CLIENT
    ========================= */
 
 const jar = new CookieJar();
 const client = fetchCookie(fetch, jar);
 
 /* =========================
-   CACHE MÉMOIRE
+   CACHE
    ========================= */
 
 let cache = {
@@ -70,7 +70,7 @@ let cache = {
 };
 
 /* =========================
-   AUTH SAROOL
+   AUTH
    ========================= */
 
 async function isAuthenticated() {
@@ -158,8 +158,26 @@ async function fetchPlanning() {
     const year = 2000 + y;
     const [h, min] = startText.split("h").map(Number);
 
-    const start = new Date(year, m - 1, d, h, min);
-    const end = new Date(start.getTime() + durationMin * 60000);
+    // 🕒 Date locale (Europe/Paris)
+    const localStart = new Date(year, m - 1, d, h, min);
+    const localEnd = new Date(localStart.getTime() + durationMin * 60000);
+
+    // 🌍 Conversion UTC
+    const startUTC = [
+      localStart.getUTCFullYear(),
+      localStart.getUTCMonth() + 1,
+      localStart.getUTCDate(),
+      localStart.getUTCHours(),
+      localStart.getUTCMinutes()
+    ];
+
+    const endUTC = [
+      localEnd.getUTCFullYear(),
+      localEnd.getUTCMonth() + 1,
+      localEnd.getUTCDate(),
+      localEnd.getUTCHours(),
+      localEnd.getUTCMinutes()
+    ];
 
     let type = "lecon";
     if (/simulateur/i.test(typeLabel)) type = "simulateur";
@@ -169,16 +187,13 @@ async function fetchPlanning() {
 
     events.push({
       title: `${typeLabel} – ${instructor}`,
-      start: [year, m, d, h, min],
-      end: [
-        end.getFullYear(),
-        end.getMonth() + 1,
-        end.getDate(),
-        end.getHours(),
-        end.getMinutes()
-      ],
+      start: startUTC,
+      end: endUTC,
       location,
-      description: `Moniteur : ${instructor}\nType : ${typeLabel}`
+      description:
+        `Moniteur : ${instructor}\n` +
+        `Type : ${typeLabel}\n` +
+        `⏱️ Times are provided in UTC`
     });
   });
 
@@ -187,13 +202,19 @@ async function fetchPlanning() {
 }
 
 /* =========================
-   ICS
+   ICS (UTC)
    ========================= */
 
 function buildICS(events) {
   const t0 = Date.now();
-  const { error, value } = createEvents(events);
+
+  const { error, value } = createEvents(events, {
+    calName: "Sarool Planning (UTC)",
+    startOutputType: "utc"
+  });
+
   if (error) throw error;
+
   console.log(`[ICS] généré en ${Date.now() - t0} ms`);
   return value;
 }
