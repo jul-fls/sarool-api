@@ -13,6 +13,7 @@ dotenv.config();
    ========================= */
 
 const BASE = "https://www.sarool.fr";
+const TIMEZONE = process.env.TIMEZONE || "Europe/Paris";
 const EMAIL = process.env.SAROOL_EMAIL;
 const PASSWORD = process.env.SAROOL_PASSWORD;
 const API_TOKEN = process.env.API_TOKEN;
@@ -23,7 +24,7 @@ if (!EMAIL || !PASSWORD || !API_TOKEN) {
 }
 
 /* =========================
-   LOCATIONS
+   LOCATIONS (ENV CONFIG)
    ========================= */
 
 const LOCATIONS = {
@@ -54,14 +55,14 @@ function resolveLocation(type) {
 }
 
 /* =========================
-   HTTP CLIENT
+   HTTP CLIENT + COOKIES
    ========================= */
 
 const jar = new CookieJar();
 const client = fetchCookie(fetch, jar);
 
 /* =========================
-   CACHE
+   CACHE MÉMOIRE
    ========================= */
 
 let cache = {
@@ -70,7 +71,7 @@ let cache = {
 };
 
 /* =========================
-   AUTH
+   AUTH SAROOL
    ========================= */
 
 async function isAuthenticated() {
@@ -158,26 +159,8 @@ async function fetchPlanning() {
     const year = 2000 + y;
     const [h, min] = startText.split("h").map(Number);
 
-    // 🕒 Date locale (Europe/Paris)
-    const localStart = new Date(year, m - 1, d, h, min);
-    const localEnd = new Date(localStart.getTime() + durationMin * 60000);
-
-    // 🌍 Conversion UTC
-    const startUTC = [
-      localStart.getUTCFullYear(),
-      localStart.getUTCMonth() + 1,
-      localStart.getUTCDate(),
-      localStart.getUTCHours(),
-      localStart.getUTCMinutes()
-    ];
-
-    const endUTC = [
-      localEnd.getUTCFullYear(),
-      localEnd.getUTCMonth() + 1,
-      localEnd.getUTCDate(),
-      localEnd.getUTCHours(),
-      localEnd.getUTCMinutes()
-    ];
+    const start = new Date(year, m - 1, d, h, min);
+    const end = new Date(start.getTime() + durationMin * 60000);
 
     let type = "lecon";
     if (/simulateur/i.test(typeLabel)) type = "simulateur";
@@ -187,13 +170,16 @@ async function fetchPlanning() {
 
     events.push({
       title: `${typeLabel} – ${instructor}`,
-      start: startUTC,
-      end: endUTC,
+      start: [year, m, d, h, min],
+      end: [
+        end.getFullYear(),
+        end.getMonth() + 1,
+        end.getDate(),
+        end.getHours(),
+        end.getMinutes()
+      ],
       location,
-      description:
-        `Moniteur : ${instructor}\n` +
-        `Type : ${typeLabel}\n` +
-        `⏱️ Times are provided in UTC`
+      description: `Moniteur : ${instructor}\nType : ${typeLabel}`
     });
   });
 
@@ -202,19 +188,15 @@ async function fetchPlanning() {
 }
 
 /* =========================
-   ICS (UTC)
+   ICS
    ========================= */
 
 function buildICS(events) {
   const t0 = Date.now();
-
-  const { error, value } = createEvents(events, {
-    calName: "Sarool Planning (UTC)",
-    startOutputType: "utc"
-  });
-
+  const { error, value } = createEvents(events,
+    { title: "Sarool Planning", productId: "sarool-api", timezone: TIMEZONE }
+  );
   if (error) throw error;
-
   console.log(`[ICS] généré en ${Date.now() - t0} ms`);
   return value;
 }
